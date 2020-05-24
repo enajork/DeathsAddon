@@ -1,1 +1,6 @@
+#@no-lib-strip@
+Libs\LibStub\LibStub.lua
+Libs\AceComm-3.0\AceComm-3.0.xml
+Libs\AceSerializer-3.0\AceSerializer-3.0.xml
+#@end-no-lib-strip@
 deaths.lua

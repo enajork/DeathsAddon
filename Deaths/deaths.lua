@@ -1,6 +1,7 @@
 --[[
   written by topkek
 --]]
+-- local Ace = LibStub("AceComm-3.0", "AceSerializer-3.0")
 local frame = CreateFrame("Frame")
 frame:RegisterEvent("PLAYER_LOGIN")
 frame:RegisterEvent("GROUP_ROSTER_UPDATE")
@@ -28,44 +29,25 @@ end
 function UpdateGroupTable()
   groupNames = {}
   groupSize = GetNumGroupMembers();
-  local myName, myRealm = UnitName("player")
-  local fullName = myName
-  if myRealm ~= nil and myRealm ~= "" then
-    fullName = myName .. "-" .. myRealm
-  end
-  local id = UnitGUID("player")
-  if group[id] == nil then
-    group[id] = {}
-  end
-  group[id]["name"] = fullName
-  groupNames[fullName] = true
-  if UnitGUID("raid1") == nil then
-    for i = 1, groupSize - 1 do
-      local myName, myRealm = UnitName("party" .. i)
-      local fullName = myName
-      if myRealm ~= nil and myRealm ~= "" then
-        fullName = myName .. "-" .. myRealm
-      end
-      local id = UnitGUID("party" .. i)
-      if group[id] == nil then
-        group[id] = {}
-      end
-      group[id]["name"] = fullName
-      groupNames[fullName] = true
+  if groupSize == 0 then
+    local name = UnitName("player")
+    local id = UnitGUID(name)
+    if group[id] == nil then
+      group[id] = {}
     end
+    group[id]["name"] = name
+    group[id]["num"] = 0
+    groupNames[name] = true
   else
-    for i = 1, groupSize - 1 do
-      local myName, myRealm = UnitName("raid" .. i)
-      local fullName = myName
-      if myRealm ~= nil and myRealm ~= "" then
-        fullName = myName .. "-" .. myRealm
-      end
-      local id = UnitGUID("raid" .. i)
+    for i = 1, groupSize do
+      local name = GetRaidRosterInfo(i)
+      local id = UnitGUID(name)
       if group[id] == nil then
         group[id] = {}
       end
-      group[id]["name"] = fullName
-      groupNames[fullName] = true
+      group[id]["name"] = name
+      group[id]["num"] = i
+      groupNames[name] = true
     end
   end
   for key, value in pairs(group) do
@@ -84,12 +66,23 @@ function shiftEvents(destGUID)
   end
 end
 
+function spacer(max, i, guid)
+  local size = #string.format("%.2f", group[guid]["1"]["time"] - group[guid][tostring(i)]["time"])
+  local result = ""
+  for i = 1, max - size do
+    result = result .. "  "
+  end
+  return result
+end
+
 function HandleCombatLog(...)
-  local _, subevent, _, _, sourceName, _, _, destGUID, destName = ...
+  UpdateGroupTable()
+  local time, subevent, _, _, sourceName, _, _, destGUID, destName = ...
 	local spellName, amount, overkill
   local eventPrefix, eventSuffix = subevent:match("^(.-)_?([^_]*)$")
   if group[destGUID] ~= nil then
     if eventSuffix == "DAMAGE" or eventSuffixeventSuffix == "INSTAKILL" then
+      local name, rank, subgroup, level, class, fileName,   zone, online, isDead, role, isML = GetRaidRosterInfo(1)
       if eventPrefix == "SWING" then
         amount, overkill = select(12, ...)
         if amount == 0 then
@@ -139,28 +132,38 @@ function HandleCombatLog(...)
           group[destGUID]["1"]["source"] = "an unknown source"
         end
       end
+      group[destGUID]["1"]["time"] = time
     end
-    if subevent == "UNIT_DIED" then
-      if enabled then
-        print("|cffFF0000Player death: " .. destName .. "|r")
-        if group[destGUID]["3"] ~= nil then
-          print("|cffFF00003: " .. group[destGUID]["3"]["damage"] 
-            .. " damage from " .. group[destGUID]["3"]["source"] 
-            .. "'s " .. group[destGUID]["3"]["spell"] .. ".|r")
+    if true or subevent == "UNIT_DIED" then
+      if destGUID == UnitGUID(UnitName("player")) or select(9, GetRaidRosterInfo(group[destGUID]["num"])) then
+        if enabled then
+          local max = 4
+          for i = 2, 3 do
+            if group[destGUID][tostring(i)] ~= nil then
+              local size = #string.format("%.2f", group[destGUID]["1"]["time"] - group[destGUID][tostring(i)]["time"])
+              if size > max then
+                max = size
+              end
+            end
+          end
+          if group[destGUID]["3"] ~= nil then
+            print("|cffFF0000" .. spacer(max, 3, destGUID) .. "-" .. string.format("%.2f", group[destGUID]["1"]["time"] - group[destGUID]["3"]["time"]) 
+              .. ": " .. destName .. " took " .. group[destGUID]["3"]["damage"] .. " " .. group[destGUID]["3"]["spell"]
+              .. " damage from " .. group[destGUID]["3"]["source"] .. ".|r")
+          end
+          if group[destGUID]["2"] ~= nil then
+            print("|cffFF0000" .. spacer(max, 2, destGUID) .. "-" .. string.format("%.2f", group[destGUID]["1"]["time"] - group[destGUID]["2"]["time"]) 
+              .. ": " .. destName .. " took " .. group[destGUID]["2"]["damage"] .. " " .. group[destGUID]["2"]["spell"]
+              .. " damage from " .. group[destGUID]["2"]["source"] .. ".|r")
+          end
+          local result = "|cffFF0000" .. spacer(max, 1, destGUID) .. "0.00: " .. destName .. " took " .. group[destGUID]["1"]["damage"] 
+          if group[destGUID]["1"]["overkill"] > 0 then
+            result = result .. " (" .. group[destGUID]["1"]["overkill"] .. " overkill)"
+          end
+          result = result .. "  " ..  group[destGUID]["1"]["spell"] .. " damage from "
+            .. group[destGUID]["1"]["source"] .. ".|r"
+          print(result)
         end
-        if group[destGUID]["2"] ~= nil then
-          print("|cffFF00002: " .. group[destGUID]["2"]["damage"] 
-            .. " damage from " .. group[destGUID]["2"]["source"] 
-            .. "'s " .. group[destGUID]["2"]["spell"] .. ".|r")
-        end
-        local result = "|cffFF00001: " .. group[destGUID]["1"]["damage"] 
-          .. " damage"
-        if group[destGUID]["1"]["overkill"] > 0 then
-          result = result .. " (" .. group[destGUID]["1"]["overkill"] .. " overkill)"
-        end
-        result = result .. " from " .. group[destGUID]["1"]["source"] 
-          .. "'s " .. group[destGUID]["1"]["spell"] .. ".|r"
-        print(result)
       end
     end
   end
@@ -172,6 +175,9 @@ function handleEvents(self, event, msg, sender)
     print("|cffFF0000Loaded Topkek's Death Addon v0.1|r")
   end
   if event == "COMBAT_LOG_EVENT_UNFILTERED" then
+    -- if UnitGUID("raid1") == nil or UnitInBattleground("player") ~= nil or not IsInInstance() then
+    --   return
+    -- end
     HandleCombatLog(CombatLogGetCurrentEventInfo())
   end
   if event == "GROUP_ROSTER_UPDATE" then
