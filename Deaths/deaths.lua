@@ -109,7 +109,7 @@ function printDeath(group, destGUID, destName)
   if group[destGUID]["1"]["overkill"] > 0 then
     result = result .. " (" .. group[destGUID]["1"]["overkill"] .. " overkill)"
   end
-  result = result .. "  " ..  group[destGUID]["1"]["spell"] .. " damage from "
+  result = result .. " " ..  group[destGUID]["1"]["spell"] .. " damage from "
     .. group[destGUID]["1"]["source"] .. ".|r"
   print(result)
   _group[destGUID]["reported"] = true
