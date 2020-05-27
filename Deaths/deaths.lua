@@ -6,6 +6,9 @@ local Deaths = LibStub("AceAddon-3.0"):NewAddon("Deaths", "AceComm-3.0", "AceSer
 local LibDeflate = LibStub:GetLibrary("LibDeflate");
 local frame = CreateFrame("Frame")
 frame:RegisterEvent("ZONE_CHANGED")
+frame:RegisterEvent("ZONE_CHANGED_NEW_AREA")
+frame:RegisterEvent("ZONE_CHANGED_INDOORS")
+frame:RegisterEvent("PLAYER_ENTERING_WORLD")
 frame:RegisterEvent("PLAYER_LOGIN")
 frame:RegisterEvent("GROUP_ROSTER_UPDATE")
 frame:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
@@ -109,7 +112,7 @@ function printDeath(group, destGUID, destName)
   if group[destGUID]["1"]["overkill"] > 0 then
     result = result .. " (" .. group[destGUID]["1"]["overkill"] .. " overkill)"
   end
-  result = result .. "  " ..  group[destGUID]["1"]["spell"] .. " damage from "
+  result = result .. " " ..  group[destGUID]["1"]["spell"] .. " damage from "
     .. group[destGUID]["1"]["source"] .. ".|r"
   print(result)
   _group[destGUID]["reported"] = true
@@ -204,7 +207,7 @@ function HandleCombatLog(...)
         local serialized = Deaths:Serialize(_group, destGUID, destName)
         local compressed = LibDeflate:CompressDeflate(serialized, {level = 9})
         local data = LibDeflate:EncodeForWoWAddonChannel(compressed)
-        if raid then
+        if UnitGUID("raid1") ~= nil then
           Deaths:SendCommMessage("Deaths", data, "RAID")
         else
           Deaths:SendCommMessage("Deaths", data, "PARTY")
@@ -247,8 +250,16 @@ function handleEvents(self, event, msg, sender)
     UpdateGroupTable()
     IsInRaidInstance()
   end
-  if event == "ZONE_CHANGED" then
+  if event == "ZONE_CHANGED" or event == "ZONE_CHANGED_NEW_AREA" 
+      or event == "ZONE_CHANGED_INDOORS" or event == "PLAYER_ENTERING_WORLD" then
     IsInRaidInstance()
+    if raid then
+      if raidEnabled then
+        print("|cffFF0000Raid deaths enabled|r")
+      else
+        print("|cffFF0000Raid deaths disabled|r")
+      end
+    end
   end
 end
 
@@ -258,9 +269,9 @@ function slashCommand(msg)
   if raid then
     raidEnabled = not raidEnabled
     if raidEnabled then
-      print("|cffFF0000Deaths raid enabled|r")
+      print("|cffFF0000Raid deaths enabled|r")
     else
-      print("|cffFF0000Deaths raid disabled|r")
+      print("|cffFF0000Raid deaths disabled|r")
     end
   else
     enabled = not enabled

@@ -6,5 +6,5 @@ config.raids = {
   "Zul'Gurub",
   "Ruins of Ahn'Qiraj",
   "Temple of Ahn'Qiraj",
-  "Naxxramas"
+  "Naxxramas",
 }
